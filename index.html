@@ -631,25 +631,13 @@ let saveTimer = null;
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzX-diciSZewr-ef1WU2Hel2qmpydqjZ4RosKU8yYg4wM_mPUVzadogjvhoHt7UlogY/exec';
 
 async function loadData() {
-  // まずlocalStorageから即座に読み込んで表示（高速化）
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      db = { members: [], tags: [], venues: [], ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw);
+      db = { members: [], tags: [], venues: [], settings: { shotMode: false, costMode: false, eventMode: true, memoMode: true }, ...parsed };
     }
   } catch(e) {}
-
-  // バックグラウンドでGoogle Sheetsから最新データを取得
-  try {
-    const res = await fetch(GAS_URL);
-    const data = await res.json();
-    if (data && data.members) {
-      db = { members: [], tags: [], venues: [], ...data };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
-    }
-  } catch(e) {
-    // Google Sheets未接続時は無視（localStorageで動作）
-  }
 }
 
 async function saveData() {
