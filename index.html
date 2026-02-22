@@ -475,6 +475,7 @@ body{
       <button class="icon-btn" onclick="openSyncModal()" title="同期">⇄</button>
       <button class="icon-btn active" id="btn-tile" onclick="setView('tile')" title="タイル">⊞</button>
       <button class="icon-btn" id="btn-list" onclick="setView('list')" title="リスト">☰</button>
+      <button class="icon-btn" id="btn-sort" onclick="toggleSort()" title="枚数順">↓</button>
       <button class="icon-btn" onclick="openSettingsModal()" title="設定">⚙</button>
     </div>
   </div>
@@ -626,6 +627,8 @@ let activeTag = null;
 let viewMode = 'tile';
 let selectedNewTags = new Set();
 let saveTimer = null;
+let sortByCount = false;
+let displayOrder = []; // 表示順を保持するIDリスト
 
 // ═══ STORAGE (Google Sheets) ═══
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzX-diciSZewr-ef1WU2Hel2qmpydqjZ4RosKU8yYg4wM_mPUVzadogjvhoHt7UlogY/exec';
@@ -749,8 +752,21 @@ function setView(v){
 function renderMemberView(){
   const el = document.getElementById('member-view');
   let list = activeTag===null ? [...db.members] : db.members.filter(m=>(m.tags||[]).includes(activeTag));
-  // 枚数の多い順にソート
-  list.sort((a,b) => memberTotal(b) - memberTotal(a));
+  if(sortByCount){
+    // ソートON：枚数順に並べてdisplayOrderを更新
+    list.sort((a,b) => memberTotal(b) - memberTotal(a));
+    displayOrder = list.map(m=>m.id);
+  } else if(displayOrder.length > 0){
+    // ソートOFF：displayOrderの順番を維持
+    list.sort((a,b) => {
+      const ai = displayOrder.indexOf(a.id);
+      const bi = displayOrder.indexOf(b.id);
+      if(ai===-1 && bi===-1) return 0;
+      if(ai===-1) return 1;
+      if(bi===-1) return -1;
+      return ai - bi;
+    });
+  }
   if(list.length===0){
     el.innerHTML=`<div class="empty"><em>🌸</em>${activeTag?'このグループに推しはいません':'＋ボタンで推しを追加しよう'}</div>`;
     return;
@@ -1179,7 +1195,19 @@ function tileChange(id, delta){
   if(!m.shots) m.shots = {};
   m.shots['サインあり'] = Math.max(0, (m.shots['サインあり']||0) + delta);
   save();
+  // プラス/マイナスを押したらソートOFF
+  if(sortByCount){
+    sortByCount = false;
+    document.getElementById('btn-sort').classList.remove('active');
+  }
   renderHome();
+}
+
+// ═══ SORT ═══
+function toggleSort(){
+  sortByCount = !sortByCount;
+  document.getElementById('btn-sort').classList.toggle('active', sortByCount);
+  renderMemberView();
 }
 
 // ═══ INIT ═══
